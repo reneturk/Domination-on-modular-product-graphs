@@ -1,0 +1,181 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{url}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\geometry{a4paper, margin=1in}
+
+\title{Domination on Modular Product Graphs}
+\author{
+    Maks Rozman, Nea Lovrinčić, Rene Turk
+}
+\date{31. januar 2025}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definicija}[section]
+
+\begin{document}
+
+\maketitle
+
+% \begin{abstract}
+% (Če bomo meli slučajno kaj abstracta, drugače ga vržemo ven).
+% \end{abstract}
+
+\section{Uvod}
+V projektni nalogi smo preučevali dominacijo (dominacijsko število) na modularnem produktu grafov. Modularni produkt smo označevali z znakom $\diamond$, dominacijsko število pa z $\gamma$. Kot je predvideno v navodilih, smo si delo razdelili na dva dela. Zaradi težav pri uporabi Sage-a na naših napravah (ter omejitev plačljive spletne storitve CoCalc), smo kodo pisali v Pythonu s pomočjo knjižnice \path{NetworkX}.
+
+\section{Definicije}
+Delali smo z neusmerjenimi grafi $G = (V,E)$, kjer je $V$ množica vozlišč, $E$ pa množica povezav grafa.
+\subsection{Dominacijska množica in dominacijsko število}
+\begin{definition}\label{def:dominacijska}
+    Dominacijska množica grafa $G = (V, E)$ je podmnožica $D \subseteq V$, za katero velja, da je vsako vozlišče, ki ni v $D$, sosed vsaj enemu vozlišču iz $D$. Dominacijsko število $\gamma(G)$ je moč najmanjše dominacijske množice grafa $G$.
+\end{definition}
+
+\subsection{Modularni produkt}
+\begin{definition}\label{def:modularni}
+    Modularni produkt $G \diamond H$ grafov $G$ in $H$ je graf z množico vozlišč $V(G) \times V(H)$, ki je unija kartezičnega produkta, direktnega produkta in direktnega produkta komplementov $G$ in $H$:
+    $$
+    G \diamond H = G \square H \cup G \times H \cup \overline{G} \times \overline{H}.
+    $$
+    Natančneje, vozlišči $(g,h)$ in $(g',h')$ grafa $G \diamond H$ sta sosednji, če:
+    \begin{enumerate}
+        \item $g = g'$ in $hh' \in E(H)$ ali $gg' \in E(G)$ in $h=h'$; \textbf{ali}
+        \item $gg' \in E(G)$ in $hh' \in E(H)$; \textbf{ali}
+        \item (ko $g \neq g'$ in $h \neq h'$) $gg'\notin E(G)$ in $hh' \notin E(H)$.
+    \end{enumerate}
+\end{definition}  
+
+
+
+\section{Prvi del projektne naloge}
+V prvem delu smo iskali grafe $G$, za katere velja $\gamma(G \diamond G) \geq \gamma(G) + 2$ \label{pogoj}. \\
+
+\subsection{Stohastično iskanje ustreznih grafov}
+Najprej smo v datoteko \path{funkcije.py} zapisali štiri funkcije, %ali pet, če bo še stohastično notr
+ki smo jih potem uporabljali za iskanje ustreznih grafov. in sicer:
+\begin{itemize}
+    \item \path{modularni_produkt} za konstrukcijo grafa modularnega produkta dveh grafov,
+    \item \path{dominacijsko_stevilo}, da smo dobili dominacijsko število grafa,
+    \item \path{zmanjsaj_premer_na_2}, ki je danemu grafu dodajala povezave, dokler ni bil premer grafa enak 2,
+    \item \path{stohasticno_iskanje_grafa}, ki je stohastično generirala grafe (dejansko smo na koncu imeli tri, ker smo poskusili \hyperref[stohasticna]{tri nekoliko različne načine konstrukcije}).
+    % \item če bo simulated_annealing
+\end{itemize}
+\subsubsection{Modularni produkt grafov}
+Psevdokoda za konstrukcijo grafa modularnega produkta dveh grafov:
+\begin{algorithm}
+\caption{Modularni produkt grafov}
+\begin{algorithmic}[1]
+\Function{ModularniProdukt}{G, H}
+    \State GH $\gets$ nov prazen graf
+    \State GH\_vozlišča $\gets$ \{$(g, h) \mid g \in V(G), h \in V(H)$\} \Comment{Vozlišča GH so kartezični produkt vozlišč G in H.}
+    \State Dodaj GH\_vozlišča v GH
+    
+    \ForAll{$(g_1, h_1) \in \text{GH\_vozlišča}$} \Comment{Inicializiramo dve for zanki za dodajanje povezav po treh pravilih modularnega produkta (glej definicijo~\ref{def:modularni}).}
+        \ForAll{$(g_2, h_2) \in \text{GH\_vozlišča}$}
+            \If{$g_1 = g_2$ in $(h_1, h_2) \in E(H)$} %\Comment{Prvo pravilo a) (glej def. 2.2.)}
+                \State Dodaj povezavo $((g_1, h_1), (g_2, h_2))$ v GH
+            \ElsIf{$(g_1, g_2) \in E(G)$ in $h_1 = h_2$} %\Comment{Prvo pravilo b)}
+                \State Dodaj povezavo $((g_1, h_1), (g_2, h_2))$ v GH
+            \ElsIf{$(g_1, g_2) \in E(G)$ in $(h_1, h_2) \in E(H)$} %\Comment{Drugo pravilo}
+                \State Dodaj povezavo $((g_1, h_1), (g_2, h_2))$ v GH
+            \ElsIf{$g_1 \neq g_2$ in $h_1 \neq h_2$ in $(g_1, g_2) \notin E(G)$ in $(h_1, h_2) \notin E(H)$} %\Comment{Tretje pravilo}
+                \State Dodaj povezavo $((g_1, h_1), (g_2, h_2))$ v GH
+            \EndIf
+        \EndFor
+    \EndFor
+    \State \Return GH \Comment{Vrnemo graf GH modularnega produkta grafov G in H.}
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Dominacijsko število}
+\noindent Sledi zapis linearnega programa za izračun dominacijskega števila grafa. Prva oblika te funkcije je bila "brute-force". Za vsako število $i$ od $1$ do vključno $n$ smo generirali vse možne podmnožice vozlišč moči $i$. Ko je funkcija za dano podmnožico vozlišč ugotovila, da je dominacijska, je vrnila število $i$ (ki je avtomatsko dominacijsko število, saj je $i$ moč najmanjše dominacijske množice grafa). Funkcija je pravilno delovala, vendar je bila časovno zelo potratna ($O(2^n)$). Po posvetovanju s prof. Škrekovskim smo za računanje dominacijskega števila vpeljali časovno veliko učinkovitejši linearni program (v Python funkcijo smo ga implementirali z orodjem PuLP):
+
+$$
+x_v =
+\begin{cases} 
+      1; & v \in V(G) \text{ je v dominacijski množici} \\
+      0; & v \in V(G) \text{ ni v dominacijski množici} 
+\end{cases}
+$$
+
+Hočemo
+$$
+\min \sum_{v\in V(G)} x_v,
+$$
+
+pri pogoju
+$$
+x_v + \sum_{u \in N(v)} x_u \geq 1, \quad \forall v \in V(G),
+$$
+
+kjer je $N(v)$ množica vseh sosedov vozlišča $v$ v grafu $G$:  
+$$
+N(v) = \{ u \in V(G) \mid (u,v) \in E(G) \}.
+$$
+
+Končna vrednost dominacijskega števila je
+$$
+\sum_{v\in V(G)} x_v.
+$$
+
+\subsubsection{Zmanjšaj premer na 2}
+\noindent Znano je, da če obstajajo grafi, ki zadovoljijo \hyperref[pogoj]{ta pogoj}, mora biti njihov premer enak 2. Zato smo grafe, ki smo jih stohastično konstruirali, s pomočjo naslednje metode preuredili, da so imeli premer enak 2:
+\begin{enumerate}
+    \item Če vhodni graf ni bil povezan, je funkcija vrnila napako. Zato smo najprej naključno dodajali povezave, dokler graf ni bil povezan.
+    \item Če je bil premer grafa večji od 2, je metoda najprej poiskala dve vozlišči na grafu, ki sta bili na največji razdalji. Med  njima je nato naključno dodala povezavo.
+    \item Nato je izbrala drugi dve vozlišči, ki sta bili na maksimalni povezavi, in tako naprej, dokler ni bil premer grafa enak 2.
+\end{enumerate}
+
+\subsubsection{Stohastična konstrukcija na tri načine}\label{stohasticna}
+\noindent Grafe, ki ustrezajo \hyperref[pogoj]{pogoju}, smo iskali stohastično na tri podobne načine. Za vsako število vozlišč $n$ smo konstruirali 1000 grafov. Načini so se razlikovali v tem, da smo pri prvem načinu vsak graf na novo konstruirali, kjer je bilo $n$ število vozlišč, število povezav pa je bilo naključno. Če graf ni bil povezan, smo iteracijo zanke preskočili. Pri drugem načinu smo konstruirali graf na $n$ vozliščih brez povezav, in nato naključno dodajali povezave, dokler graf ni bil povezan. Hoteli smo poskusiti, če na ta način morda dobimo drugačne grafe kot v prvem primeru. Pri obeh načinih smo potem enako uporabili funkcijo za zmanjšanje premera grafa na 2, in potem testirali, če je graf ustrezen. Pri tretjem načinu pa smo graf kot pri drugem načinu konstruirali in ga testirali, nismo pa v naslednji iteraciji naredili novega grafa, temveč smo staremu odstranili nekaj povezav, spet uporabili funkcijo za zmanjšanje premera na 2 in tako naprej.
+
+
+\subsection{Ugotovitve}
+Pri iskanju grafov žal nismo bili uspešni, saj kljub testiranju na velikem številu grafov (od 2 do vključno 22 vozlišč) nismo našli nobenega, ki bi ustrezal \hyperref[pogoj]{pogoju}. S funkcijami, ki so delovale na isti način, kot funkcije za stohastično generiranje grafov, smo konstruirali 1000 grafov, za vsako število vozlišč od 3 do 10. Potem smo naredili prikaz, kjer smo za vsak graf $G$ izračunali njegovo dominacijsko število (x-os) ter dominacijsko število modularnega produkta $(G \diamond G)$ (y-os):
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=1\linewidth]{image.png}
+\end{figure}
+
+\noindent Vidimo lahko, da smo zajeli maksimalno možno dominacijsko število povezanega grafa za vsako število vozlišč (kar nam pove, da smo uspeli generirati med sabo dovolj različne grafe). Vidimo lahko tudi da je dominacijsko število modularnega produkta $(G \diamond G)$ kvečjemu za ena večje od dominacijskega števila $G$, za grafe, ki smo jih uspeli generirati.
+
+\section{Drugi del projektne naloge}
+
+\subsection{Uvod}
+V tej nalogi smo preverjali veljavnost neenakosti $\gamma(G \diamond H) \leq 4$ za modularni produkt grafa $G$ s premerom vsaj 3 in grafa $H$ tipa (SB). Pri tem smo uporabili podatke in funkcije, ki so jih razvile skupine 20 in 21. Cilj je bil najti pare grafov $G$ in $H$, pri katerih se doseže zgornja meja $\gamma(G \diamond H) = 4$, ter preveriti, ali obstajajo pari, kjer neenakost ne drži.
+
+\subsection{Metodologija}
+Za generiranje grafov smo uporabili naslednje pristope:
+\begin{itemize}
+    \item Graf $G$ je bil naključno generiran z uporabo modela Erdős–Rényi, pri čemer smo preverili, da je povezan in da ima premer vsaj 3.
+    \item Graf $H$ je bil generiran kot graf tipa (SB) s pomočjo funkcije \texttt{generate\_random\_sb()}.
+    \item Izračunan je bil modularni produkt $G \diamond H$.
+    \item Dominacijsko število $\gamma(G \diamond H)$ je bilo izračunano s funkcijo \texttt{dominacijsko\_stevilo()}.
+    \item Za vsako kombinacijo velikosti grafov (do vključno 20 vozlišč) je bilo izvedenih 1000 iteracij.
+\end{itemize}
+
+\subsection{Rezultati}
+Po izvedenih simulacijah so bili dobljeni naslednji rezultati:
+\begin{itemize}
+    \item Najden ni bil noben par grafov $G$ in $H$, za katerega bi neenakost $\gamma(G \diamond H) \leq 4$ ne držala.
+    \item Prav tako ni bil najden noben par, za katerega bi držala enakost $\gamma(G \diamond H) = 4$.
+    \item Vsi generirani primeri so potrjevali domnevo, da $\gamma(G \diamond H) \leq 4$.
+\end{itemize}
+
+\subsection{Zaključek}
+S pomočjo funkcij drugih skupin smo uspešno preverili neenakost $\gamma(G \diamond H) \leq 4$ za različne pare grafov. Rezultati kažejo, da v nobenem primeru dominacijsko število modularnega produkta ni preseglo vrednosti 4, kar potrjuje domnevo. Prav tako nismo našli primera, kjer bi bila dosežena zgornja meja, kar nakazuje možnost, da bi se dalo neenakost dodatno zožiti. Nadaljnje delo bi lahko vključevalo povečanje števila iteracij ali analizo posebnih razredov grafov, pri katerih bi morda lahko dosegli $\gamma(G \diamond H) = 4$.
+
+%\bibliographystyle{plain}
+%\bibliography{references}
+
+\end{document}
+
+% če dubimo grafe k ustrezajo, vključimo skice
