@@ -292,28 +292,72 @@ def stohasticno_iskanje_grafa_3a(n, max_iter = 1000):
     return rezultati
 
 
-# def generiraj_vse_povezane_grafe(n):
-#     """
-#     Generira vse povezane grafe na n vozliščih.
+def generiraj_vse_povezane_grafe(n):
+    """
+    Generira vse povezane grafe na n vozliščih.
     
-#     Parametri:
-#         n (int): Število vozlišč.
+    Parametri:
+        n (int): Število vozlišč.
     
-#     Vrne:
-#         list[nx.Graph]: Seznam vseh povezanih grafov na n vozliščih.
-#     """
-#     vozlisca = list(range(n))
-#     vse_mozne_povezave = list(itertools.combinations(vozlisca, 2))
-#     povezani_grafi = []
+    Vrne:
+        list[nx.Graph]: Seznam vseh povezanih grafov na n vozliščih.
+    """
+    vozlisca = list(range(n))
+    # Naredimo seznam vseh možnih povezav v polnem grafu
+    vse_mozne_povezave = list(itertools.combinations(vozlisca, 2))
+    povezani_grafi = []
     
-#     # Iteriramo čez vse možne podmnožice povezav, ki imajo vsaj n-1 povezav
-#     for k in range(n - 1, len(vse_mozne_povezave) + 1):
-#         for povezave in itertools.combinations(vse_mozne_povezave, k):
-#             G = nx.Graph()
-#             G.add_nodes_from(vozlisca)
-#             G.add_edges_from(povezave)
+    # Iteriramo čez vse možne podmnožice povezav, ki imajo vsaj n-1 povezav
+    for k in range(n - 1, len(vse_mozne_povezave) + 1):
+        for povezave in itertools.combinations(vse_mozne_povezave, k):
+            G = nx.Graph()
+            G.add_nodes_from(vozlisca)
+            G.add_edges_from(povezave)
             
-#             if nx.is_connected(G):  # Preverimo povezanost
-#                 povezani_grafi.append(G)
+            if nx.is_connected(G):  # Preverimo povezanost
+                povezani_grafi.append(G)
     
-#     return povezani_grafi
+    return povezani_grafi
+
+from networkx.algorithms.isomorphism import GraphMatcher
+
+def vrni_neizomorfne_grafe(sez_grafov):
+    koncni_grafi = []
+
+    for G in sez_grafov:
+        if not any(GraphMatcher(G,H).is_isomorphic() for H in koncni_grafi):
+            koncni_grafi.append(G)
+    return koncni_grafi
+
+import itertools
+import networkx as nx
+
+def generiraj_milijon_povezanih_grafov(n):
+    """
+    Generira največ milijon povezanih grafov na n vozliščih.
+    
+    Parametri:
+        n (int): Število vozlišč.
+    
+    Vrne:
+        list[nx.Graph]: Seznam do največ milijon povezanih grafov na n vozliščih.
+    """
+    vozlisca = list(range(n))
+    vse_mozne_povezave = list(itertools.combinations(vozlisca, 2))
+    povezani_grafi = []
+    
+    # Iteriramo čez vse možne podmnožice povezav, ki imajo vsaj n-1 povezav
+    for k in range(n - 1, len(vse_mozne_povezave) + 1):
+        for povezave in itertools.combinations(vse_mozne_povezave, k):
+            G = nx.Graph()
+            G.add_nodes_from(vozlisca)
+            G.add_edges_from(povezave)
+            
+            if nx.is_connected(G):  # Preverimo povezanost
+                povezani_grafi.append(G)
+                
+                # Če dosežemo milijon grafov, prekinemo zanko
+                if len(povezani_grafi) >= 1000000:
+                    return povezani_grafi
+    
+    return povezani_grafi

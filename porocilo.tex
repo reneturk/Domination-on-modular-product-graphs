@@ -9,6 +9,8 @@
 \usepackage{url}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{pdfpages}
 \geometry{a4paper, margin=1in}
 
 \title{Domination on Modular Product Graphs}
@@ -98,7 +100,7 @@ Psevdokoda za konstrukcijo grafa modularnega produkta dveh grafov:
 \subsubsection{Dominacijsko število}
 \noindent Sledi zapis linearnega programa za izračun dominacijskega števila grafa. Prva oblika te funkcije je bila "brute-force". Za vsako število $i$ od $1$ do vključno $n$ smo generirali vse možne podmnožice vozlišč moči $i$. Ko je funkcija za dano podmnožico vozlišč ugotovila, da je dominacijska, je vrnila število $i$ (ki je avtomatsko dominacijsko število, saj je $i$ moč najmanjše dominacijske množice grafa). Funkcija je pravilno delovala, vendar je bila časovno zelo potratna ($O(2^n)$). Po posvetovanju s prof. Škrekovskim smo za računanje dominacijskega števila vpeljali časovno veliko učinkovitejši linearni program (v Python funkcijo smo ga implementirali z orodjem PuLP):
 
-$$
+$$ 
 x_v =
 \begin{cases} 
       1; & v \in V(G) \text{ je v dominacijski množici} \\
@@ -110,7 +112,6 @@ Hočemo
 $$
 \min \sum_{v\in V(G)} x_v,
 $$
-
 pri pogoju
 $$
 x_v + \sum_{u \in N(v)} x_u \geq 1, \quad \forall v \in V(G),
@@ -138,7 +139,7 @@ $$
 \noindent Grafe, ki ustrezajo \hyperref[pogoj]{pogoju}, smo iskali stohastično na tri podobne načine. Za vsako število vozlišč $n$ smo konstruirali 1000 grafov. Načini so se razlikovali v tem, da smo pri prvem načinu vsak graf na novo konstruirali, kjer je bilo $n$ število vozlišč, število povezav pa je bilo naključno. Če graf ni bil povezan, smo iteracijo zanke preskočili. Pri drugem načinu smo konstruirali graf na $n$ vozliščih brez povezav, in nato naključno dodajali povezave, dokler graf ni bil povezan. Hoteli smo poskusiti, če na ta način morda dobimo drugačne grafe kot v prvem primeru. Pri obeh načinih smo potem enako uporabili funkcijo za zmanjšanje premera grafa na 2, in potem testirali, če je graf ustrezen. Pri tretjem načinu pa smo graf kot pri drugem načinu konstruirali in ga testirali, nismo pa v naslednji iteraciji naredili novega grafa, temveč smo staremu odstranili nekaj povezav, spet uporabili funkcijo za zmanjšanje premera na 2 in tako naprej.
 
 
-\subsection{Ugotovitve}
+\subsubsection{Ugotovitve}
 Pri iskanju grafov žal nismo bili uspešni, saj kljub testiranju na velikem številu grafov (od 2 do vključno 22 vozlišč) nismo našli nobenega, ki bi ustrezal \hyperref[pogoj]{pogoju}. S funkcijami, ki so delovale na isti način, kot funkcije za stohastično generiranje grafov, smo konstruirali 1000 grafov, za vsako število vozlišč od 3 do 10. Potem smo naredili prikaz, kjer smo za vsak graf $G$ izračunali njegovo dominacijsko število (x-os) ter dominacijsko število modularnega produkta $(G \diamond G)$ (y-os):
 \begin{figure}[h!]
     \centering
@@ -146,6 +147,78 @@ Pri iskanju grafov žal nismo bili uspešni, saj kljub testiranju na velikem št
 \end{figure}
 
 \noindent Vidimo lahko, da smo zajeli maksimalno možno dominacijsko število povezanega grafa za vsako število vozlišč (kar nam pove, da smo uspeli generirati med sabo dovolj različne grafe). Vidimo lahko tudi da je dominacijsko število modularnega produkta $(G \diamond G)$ kvečjemu za ena večje od dominacijskega števila $G$, za grafe, ki smo jih uspeli generirati.
+
+
+
+\subsection{Iskanje grafov, za katere velja $\gamma(G \diamond G) = \gamma(G) + 1$}\label{nov_pogoj}
+Pri prejšnji točki smo ugotovili, da nismo dobili grafov, za katere bi veljalo $\gamma(G \diamond G) \geq \gamma(G) + 2$. Smo pa dobili grafe, za katere velja $\gamma(G \diamond G) = \gamma(G) + 1$. V tem podpoglavju bomo predstavili naše ugotovitve, glede grafov, za katere velja zgornji pogoj.
+
+\subsubsection{Način iskanja}
+Grafov, ki ustrezajo \hyperref[nov_pogoj]{novemu pogoju}, nismo več iskali stohastično, temveč na način, da smo za vsak možen povezan graf na $n$ vozliščih testirali, ali je ustrezen. To smo naredili s pomočjo funkcije \path{generiraj_vse_povezane_grafe}, ki nam je vrnila seznam vseh povezanih grafov na $n$ vozliščih. Njena slaba stran je izredno visoka računska zahtevnost ($O(2^\frac{n(n-1)}{2})$). Funkcija je zaradi tega uporabna le za majhne $n$, do vključno 6, za večje grafe postane računsko prezahtevna. \\
+Za večje grafe tako nismo iskali več vseh povezanih grafov, ki ustrezajo pogoju. Dobili smo le nekaj ustreznih za določeno število vozlišč, na katerih smo potem preverjali naše ugotovitve (konkretno smo jih imeli 240 na 7 vozliščih, 19 na 8 vozliščih, 5 na 9 vozliščih, 4 na 10 vozliščih, 3 na 11 vozliščih, 5 na 12 vozliščih in 5 na 13 vozliščih $\rightarrow$ skupaj 334). \label{ne_vsi_povezani}
+\begin{algorithm}[H]
+\caption{Generiranje vseh povezanih grafov na $n$ vozliščih}
+\begin{algorithmic}[1]
+\Function{GenerirajVsePovezaneGrafe}{n}
+    \State vozlišča $\gets \{1, \dots, n\}$
+    \State vse\_možne\_povezave $\gets$ vse možne povezave med pari vozlišč v polnem grafu
+    \State povezani\_grafi $\gets \emptyset$
+    
+    \ForAll{$k \in \{n-1, \dots, |\text{vse\_možne\_povezave}|\}$} \Comment{Začnemo z minimalnim številom povezav (drevo), da je graf lahko povezan}
+        \ForAll{povezave $\in$ vse kombinacije dolžine $k$ iz vse\_možne\_povezave}
+            \State $G \gets$ nov prazen graf
+            \State Dodaj vozlišča v $G$ \Comment{Vozlišča so za vsak G enaka}
+            \State Dodaj povezave v $G$
+            \If{$G$ je povezan}
+                \State Dodaj $G$ v povezani\_grafi
+            \EndIf
+        \EndFor
+    \EndFor
+    \State \Return povezani\_grafi
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\noindent Za vsak povezan graf, ki smo ga s pomočjo prejšnje funkcije dobili, smo nato testirali, ali ustreza \hyperref[nov_pogoj]{pogoju}. Ko smo dobili seznam ustreznih grafov, smo s pomočjo še ene funkcije \path{vrni_neizomorfne_grafe} seznam skrajšali tako, da so bili v njem samo grafi, ki med seboj niso bili izomorfni (funkcija je v glavnem delovala s pomočjo \path{GraphMatcher(G,H).is_isomorphic()}, ki je vgrajena v knjižnico \path{NetworkX}).
+
+%vključi še da smo meli funkcijo k je izločila izomorfne grafe
+
+\subsubsection{Ustrezni grafi}
+
+\begin{itemize}
+    \item Za \colorbox{lightgray}{$ n = 2 $} in \colorbox{lightgray}{$ n = 3 $} ne najdemo nobenega grafa, ki bi ustrezal \hyperref[nov_pogoj]{pogoju};
+    \item Za \colorbox{lightgray}{$ n = 4 $} dobimo, da je edini ustrezen graf:
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.3\linewidth]{output.png}
+    \end{figure}
+    \item Za \colorbox{lightgray}{$ n = 5 $}, dobimo 6 grafov, ki ustrezajo \hyperref[nov_pogoj]{pogoju}:
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.9\linewidth]{Screenshot 2025-02-13 155116.png}
+    \end{figure}
+    \end{itemize}
+    
+    \noindent Do vključno tu bi lahko sklepali, da bo $n$-kotnik vedno ustrezal. Vendar že za $n = 6$ to ne velja več, saj za 6-kotnik velja $\gamma(G \diamond G) = 2$ in $\gamma(G) = 2$. Podobno velja za 7-kotnik, le da je dominacijsko število v obeh primerih enako 3.
+\begin{itemize}
+    \item Za \colorbox{lightgray}{$ n = 6 $} dobimo 46 ustreznih grafov:
+    \includepdf[page={1}]{Doc3.pdf} 
+\end{itemize}
+
+\noindent Pri $n = 6$ smo naše iskanje končali, saj se je koda za $n = 7$ poganjala veliko preveč časa. Kot že napisano, za grafe od $n = 7$ do vključno $n = 13$ nismo generirali vseh povezanih grafov, temveč le \hyperref[ne_vsi_povezani]{nekaj ustreznih.}
+
+\subsubsection{Ugotovitve}
+\noindent Za dobljene ustrezne grafe smo iskali morebitne podobnosti pri naslednjih lastnostih: dvodelnost, prisotnost Eulerjevega cikla, premer, radij, kromatično število, število vseh klik in povprečna dolžina poti. Dobili smo ujemanje pri radiju, kjer je pri vseh 334 grafih ta bil enak 2. Radij grafa je najmanjša ekscentričnost med vsemi vozlišči, kjer je ekscentričnost vozlišča najdaljša najkrajša pot od tega vozlišča do katerega koli drugega vozlišča v grafu. Za vse druge preiskovane lastnosti grafov nismo ugotovili nič konkretnega (vrednosti so se razlikovale).
+
+\subsubsection{Zaključek}
+S stohastično konstrukcijo velikega števila grafov nismo uspeli najti nobenega, ki bi ustrezal pogoju $\gamma(G \diamond G) \geq \gamma(G) + 2$. Smo pa proučevali grafe, za katere velja pogoj $\gamma(G \diamond G) = \gamma(G) + 1$ in ugotovili, da je prav za vseh 334 proučevanih grafov veljalo, da je njihov radij enak 2.
+
+
+
+
+
+
+
 
 \section{Drugi del projektne naloge}
 
@@ -163,16 +236,138 @@ Za generiranje grafov smo uporabili naslednje pristope:
 \end{itemize}
 
 \subsection{Rezultati}
-Po izvedenih simulacijah so bili dobljeni naslednji rezultati:
+Po prvotno izvedenih simulacijah so bili dobljeni naslednji rezultati:
 \begin{itemize}
     \item Najden ni bil noben par grafov $G$ in $H$, za katerega bi neenakost $\gamma(G \diamond H) \leq 4$ ne držala.
     \item Prav tako ni bil najden noben par, za katerega bi držala enakost $\gamma(G \diamond H) = 4$.
     \item Vsi generirani primeri so potrjevali domnevo, da $\gamma(G \diamond H) \leq 4$.
 \end{itemize}
 
-\subsection{Zaključek}
-S pomočjo funkcij drugih skupin smo uspešno preverili neenakost $\gamma(G \diamond H) \leq 4$ za različne pare grafov. Rezultati kažejo, da v nobenem primeru dominacijsko število modularnega produkta ni preseglo vrednosti 4, kar potrjuje domnevo. Prav tako nismo našli primera, kjer bi bila dosežena zgornja meja, kar nakazuje možnost, da bi se dalo neenakost dodatno zožiti. Nadaljnje delo bi lahko vključevalo povečanje števila iteracij ali analizo posebnih razredov grafov, pri katerih bi morda lahko dosegli $\gamma(G \diamond H) = 4$.
 
+\subsection{Iskanje grafov, za katere velja $\gamma(G \diamond H) \leq 3$}
+Glede na to, da grafov, ki bi ustrezali neenakosti $\gamma(G \diamond H) \leq 4$ nismo našli, smo se odločili, da zožimo neenakost in pogledamo, ali dobimo kak graf, ki bi ustrezal neenakosti $\gamma(G \diamond H) \leq 3$ oz. enakosti $\gamma(G \diamond H) = 3$ .\\
+
+\noindent Začeli smo s preverjanjem kombinacij števila vozlišč za grafa $G$ in $H$. Za kombinacije (prvo število je število vozlišč za $G$, drugo pa za $H$), kjer smo preverjali kombinacije do 8 vozlišč, smo dobili, da za:
+\begin{itemize}
+    \item (5,5)
+    \item (5,6)
+    \item (6,5)
+    \item (5,7)
+    \item (7,5)
+    \item (5,8) ter
+    \item (8,5)
+\end{itemize}
+ne obstajajo ustrezni pari grafov, ki bi zadoščali $\gamma(G \diamond H) = 3$ . Iz tega sklepamo, da ne obstaja par, kjer ima eden izmed $G$ ali $H$ 5 vozlišč ali manj, ki zadošča enakosti.\\
+
+\subsubsection{Kombinacija (6,6)}
+\noindent Za kombinacijo (6,6), ob naključnem izbiranju grafov $G$ in $H$, smo dobili 119 primernih parov izmed 1000 iteracij, ki ustrezajo $\gamma(G \diamond H) = 3$ .
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{6,6_1.png}
+\caption{Primer 1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{6,6_2.png}
+\caption{Primer 2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{6,6_3.png}
+\caption{Primer 3}
+\end{figure}
+
+\subsubsection{Kombinacija (6,7)}
+\noindent Za kombinacijo (6,7), ob naključnem izbiranju grafov $G$ in $H$, smo dobili 106 primernih parov izmed 1000 iteracij, ki ustrezajo $\gamma(G \diamond H) = 3$ .
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{6,7_1.png}
+\caption{Primer 1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{6,7_2.png}
+\caption{Primer 2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{6,7_3.png}
+\caption{Primer 3}
+\end{figure}
+
+\newpage
+\subsubsection{Kombinacija (7,6)}
+\noindent Za kombinacijo (7,6), ob naključnem izbiranju grafov $G$ in $H$, smo dobili 360 primernih parov izmed 1000 iteracij, ki ustrezajo $\gamma(G \diamond H) = 3$ .
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,6_1.png}
+\caption{Primer 1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,6_2.png}
+\caption{Primer 2}
+\end{figure}
+
+\newpage
+\subsubsection{Kombinacija (7,7)}
+\noindent Za kombinacijo (7,7), ob naključnem izbiranju grafov $G$ in $H$, smo dobili 372 primernih parov izmed 1000 iteracij, ki ustrezajo $\gamma(G \diamond H) = 3$ .
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,7_1.png}
+\caption{Primer 1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,7_2.png}
+\caption{Primer 2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,7_3.png}
+\caption{Primer 3}
+\end{figure}
+
+\subsubsection{Kombinacija (7,8)}
+\noindent Za kombinacijo (7,8), ob naključnem izbiranju grafov $G$ in $H$, smo dobili 348 primernih parov izmed 1000 iteracij, ki ustrezajo $\gamma(G \diamond H) = 3$ .
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,8_1.png}
+\caption{Primer 1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,8_2.png}
+\caption{Primer 2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{7,8_3.png}
+\caption{Primer 3}
+\end{figure}
+
+\noindent Enako smo izvedli še za kombinacije: (6,8), (8,6), (8,7) in (8,8) ter našli še kar nekaj grafov, ki ustrezajo neenakosti $\gamma(G \diamond H) \leq 3$. Kakšnih posebnih skupnih lastnosti med pari grafov, ki ustrezajo enakosti nisem opazila.
+
+
+\subsection{Zaključek}
+S pomočjo funkcij drugih skupin smo uspešno preverili neenakost $\gamma(G \diamond H) \leq 4$ za različne pare grafov. Rezultati kažejo, da v nobenem primeru dominacijsko število modularnega produkta ni preseglo vrednosti 4, kar potrjuje domnevo. Prav tako nismo našli primera, kjer bi bila dosežena zgornja meja, kar nakazuje možnost, da bi se dalo neenakost $\gamma(G \diamond H) \leq 4$  dodatno zožiti. S preverjanjem zožane neenakosti $\gamma(G \diamond H) \leq 3$ , smo še bolj prepričani, da lahko neenakost zožimo, saj tudi v tem primeru, nismo dobili para grafov, za katera ne bi veljala neenakost. Nadaljnje delo in raziskovanje bi lahko vključevalo povečanje števila iteracij ali analizo posebnih razredov grafov, pri katerih bi morda lahko dosegli $\gamma(G \diamond H) = 4$ ali dokončno potrdili $\gamma(G \diamond H) \leq 3$.
+
+
+    
 %\bibliographystyle{plain}
 %\bibliography{references}
 
